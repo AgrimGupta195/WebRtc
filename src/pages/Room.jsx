@@ -13,8 +13,6 @@ import {
   Video, 
   X 
 } from "lucide-react";
-
-// Call Initiation Modal Component
 const CallInitiationModal = ({ onClose, onInitiateCall }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -49,8 +47,6 @@ const CallInitiationModal = ({ onClose, onInitiateCall }) => {
     </div>
   );
 };
-
-// Main Room Component
 const Room = () => {
   const navigate = useNavigate();
   const socket = useSocket();
@@ -61,19 +57,14 @@ const Room = () => {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isCallEnded, setIsCallEnded] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
-
-  // Handler for when a user joins the room
   const handleUserJoined = useCallback(({ email, id }) => {
     console.log(`Email ${email} joined room`);
     setRemoteSocketId(id);
-    // Automatically show call modal when user joins
     setShowCallModal(true);
   }, []);
-
-  // Handler to initiate a call
   const handleCallUser = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+      audio: !isMuted,
       video: !isVideoOff,
     });
     const offer = await peer.getOffer();
@@ -87,7 +78,7 @@ const Room = () => {
     async ({ from, offer }) => {
       setRemoteSocketId(from);
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: !isMuted,
         video: !isVideoOff,
       });
       setMyStream(stream);
@@ -97,15 +88,11 @@ const Room = () => {
     },
     [socket, isVideoOff]
   );
-
-  // Send streams to peer
   const sendStreams = useCallback(() => {
     for (const track of myStream.getTracks()) {
       peer.peer.addTrack(track, myStream);
     }
   }, [myStream]);
-
-  // Handler for call acceptance
   const handleCallAccepted = useCallback(
     ({ from, ans }) => {
       peer.setLocalDescription(ans);
@@ -114,22 +101,16 @@ const Room = () => {
     },
     [sendStreams]
   );
-
-  // Handle negotiation needed
   const handleNegoNeeded = useCallback(async () => {
     const offer = await peer.getOffer();
     socket.emit("peer:nego:needed", { offer, to: remoteSocketId });
   }, [remoteSocketId, socket]);
-
-  // Effect for negotiation event listener
   useEffect(() => {
     peer.peer.addEventListener("negotiationneeded", handleNegoNeeded);
     return () => {
       peer.peer.removeEventListener("negotiationneeded", handleNegoNeeded);
     };
   }, [handleNegoNeeded]);
-
-  // Handle incoming negotiation
   const handleNegoNeedIncomming = useCallback(
     async ({ from, offer }) => {
       const ans = await peer.getAnswer(offer);
@@ -137,13 +118,9 @@ const Room = () => {
     },
     [socket]
   );
-
-  // Handle final negotiation
   const handleNegoNeedFinal = useCallback(async ({ ans }) => {
     await peer.setLocalDescription(ans);
   }, []);
-
-  // Effect for tracking remote stream
   useEffect(() => {
     peer.peer.addEventListener("track", async (ev) => {
       const remoteStream = ev.streams;
@@ -151,8 +128,6 @@ const Room = () => {
       setRemoteStream(remoteStream[0]);
     });
   }, []);
-
-  // Effect for socket event listeners
   useEffect(() => {
     socket.on("user:joined", handleUserJoined);
     socket.on("incomming:call", handleIncommingCall);
@@ -175,54 +150,40 @@ const Room = () => {
     handleNegoNeedIncomming,
     handleNegoNeedFinal,
   ]);
-
-  // Toggle mute functionality
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
+    if (myStream) {
+      const audioTracks = myStream.getAudioTracks();
+      audioTracks.forEach(track => {
+        track.enabled = isMuted;
+      });
+    }
     setIsMuted(!isMuted);
-  };
-
-  // Toggle video functionality
+  }, [myStream, isMuted]);
   const toggleVideo = useCallback(async () => {
-    // If stream exists, modify its video tracks
     if (myStream) {
       const videoTracks = myStream.getVideoTracks();
       videoTracks.forEach(track => {
         track.enabled = isVideoOff;
       });
     }
-    
-    // Toggle video state
     setIsVideoOff(!isVideoOff);
   }, [myStream, isVideoOff]);
-
-  // End call functionality
   const endCall = useCallback(() => {
-    // Stop all tracks in local stream
     if (myStream) {
       myStream.getTracks().forEach(track => track.stop());
     }
-    
-    // Stop all tracks in remote stream
     if (remoteStream) {
       remoteStream.getTracks().forEach(track => track.stop());
     }
-
-    // Emit end call event
     socket.emit("call:ended", { to: remoteSocketId });
-
-    // Reset states
     setMyStream(null);
     setRemoteStream(null);
     setRemoteSocketId(null);
     setIsCallEnded(true);
   }, [myStream, remoteStream, remoteSocketId, socket]);
-
-  // Navigate to home page
   const goToHome = () => {
     navigate('/');
   };
-
-  // If call has ended, show home page button
   if (isCallEnded) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -238,10 +199,8 @@ const Room = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {/* Show Call Initiation Modal */}
       {showCallModal && remoteSocketId && (
         <CallInitiationModal 
           onClose={() => setShowCallModal(false)}
@@ -260,7 +219,6 @@ const Room = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Local Stream */}
           <div className="bg-gray-200 rounded-lg p-4 flex flex-col items-center">
             <h2 className="text-lg font-semibold mb-2 text-gray-700">
               My Stream
@@ -296,8 +254,6 @@ const Room = () => {
               </div>
             )}
           </div>
-
-          {/* Remote Stream */}
           <div className="bg-gray-200 rounded-lg p-4 flex flex-col items-center">
             <h2 className="text-lg font-semibold mb-2 text-gray-700">
               Remote Stream
@@ -318,8 +274,6 @@ const Room = () => {
             )}
           </div>
         </div>
-
-        {/* Call Controls */}
         <div className="mt-6 flex justify-center space-x-4">
           {myStream && (
             <button 
