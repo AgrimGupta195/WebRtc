@@ -259,7 +259,6 @@ const Room = () => {
             {remoteStream ? (
               <ReactPlayer
                 playing
-                muted={true}
                 height="300px"
                 width="100%"
                 url={remoteStream}
