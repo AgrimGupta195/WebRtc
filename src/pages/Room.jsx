@@ -64,7 +64,7 @@ const Room = () => {
   }, []);
   const handleCallUser = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: !isMuted,
+      audio: true,
       video: !isVideoOff,
     });
     const offer = await peer.getOffer();
@@ -72,13 +72,11 @@ const Room = () => {
     setMyStream(stream);
     setShowCallModal(false);
   }, [remoteSocketId, socket, isVideoOff]);
-
-  // Handler for incoming calls
   const handleIncommingCall = useCallback(
     async ({ from, offer }) => {
       setRemoteSocketId(from);
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: !isMuted,
+        audio: true,
         video: !isVideoOff,
       });
       setMyStream(stream);
@@ -154,7 +152,7 @@ const Room = () => {
     if (myStream) {
       const audioTracks = myStream.getAudioTracks();
       audioTracks.forEach(track => {
-        track.enabled = isMuted;
+        track.enabled = !track.enabled;
       });
     }
     setIsMuted(!isMuted);
@@ -227,7 +225,7 @@ const Room = () => {
               <div className="relative">
                 <ReactPlayer
                   playing
-                  muted={isMuted}
+                  muted={true}
                   height="300px"
                   width="100%"
                   url={myStream}
@@ -261,7 +259,7 @@ const Room = () => {
             {remoteStream ? (
               <ReactPlayer
                 playing
-                muted
+                muted={true}
                 height="300px"
                 width="100%"
                 url={remoteStream}
